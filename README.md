@@ -5,6 +5,9 @@
 This firmware turns the Korg Modwave MKI keybed into a class-compliant USB-MIDI controller
 with velocity curves, calibration, SysEx configuration, and EEPROM storage.
 
+Who the hell would need this anyway?
+Well, it only makes sense if you’ve converted the Korg Modwave into a module and you’re left with a bare keybed that you couldn’t use without a "brain".
+
 ---
 
 ## Features
