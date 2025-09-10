@@ -68,5 +68,18 @@ Format: `F0 7D <command> [data...] F7`
 ---
 
 ## License
-Non-commercial use, educational purposes.  
+
+This project is licensed under **GPL-3.0-or-later**.  
+See the [LICENSE](LICENSE) file for the full text.
 SysEx ID: **0x7D (non-commercial)**.
+
+**No warranty.** This software is provided “AS IS”, without any warranty of any kind.
+If you distribute binaries/hex files, you must also provide the full corresponding source code
+(or a written offer), as required by GPLv3.
+
+### SPDX
+All source files should include an SPDX header, for example:
+```c
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+
