@@ -1,0 +1,11 @@
+# Arduino build artifacts
+*.hex
+*.elf
+*.eep
+*.bin
+*.o
+*.d
+
+# MacOS / Windows fájlok (ha véletlenül bekerülnének)
+.DS_Store
+Thumbs.db
