@@ -1,4 +1,4 @@
-# 🎹 bORG v1.0
+# 🎹 bORG
 
 **Project:** Korg Modwave MKI keyboard → Arduino Pro Micro USB-MIDI controller
 
