@@ -2,31 +2,88 @@
 // © 2025 hetyus
 
 /*******************************************************
- * bORG v1.1.1 – Korg Modwave MKI -> Arduino Pro Micro MIDI
+ * bORG v1.1.1 – Korg Modwave MKI → Arduino Pro Micro USB-MIDI
  *
- * Újdonságok v1.1:
- *  - SysEx: MIDI csatorna beállítás (0x07), Program Change küldés (0x08),
- *    default patch be/ki + érték (0x09).
- *  - FN + billentyű "config réteg" host nélkül:
- *      * N0..N15 → MIDI csatorna 1..16
- *      * N16 → STATUS
- *      * N17 → FACTORY RESET
- *      * N18 → CALIB START
- *      * N19 → CALIB LOCK
- *      * N20 → SAVE EEPROM
- *      * N21 → FIXED-VEL mód
- *      * N22 → LINEAR, N23 → PIANO, N24 → SOFT, N25 → HARD
- *      * N26 → DEFAULT PATCH OFF, N27 → DEFAULT PATCH ON (az aktuális értékkel)
- *      * N28..N36 → Program Change gyors slotok (0..8)
- *  - Nem-blokkoló LED minták:
- *      * SAVE → hosszú villanás (~400 ms)
- *      * STATUS → dupla rövid
- *      * Csatornaváltás → tripla gyors
- *  - Default patch (opcionális) power-upkor ~300 ms után elküldve
- *  - FN gomb: Arduino pin 15 (INPUT_PULLUP, aktív LOW)
+ * *** SYSEX PARANCSOK ***
+ * Gyártó ID: 0x7D (non-commercial)
+ * Forma:  F0 7D <cmd> [adatok…] F7
+ * (Minden adat NYERS MIDI BYTE 0..127, nem ASCII számjegy!)
  *
- * Megjegyzés: Pitchbend/Modwheel a v1.2-ben érkezik (két szabad ADC pin elég).
+ * 0x01 – Velocity görbe választás
+ *   F0 7D 01 cc F7
+ *   cc: 00=LINEAR, 01=FLAT, 02=STEEP, 03=PIANO,
+ *       04=SYNTH, 05=ORGAN_FIXED, 06=SOFT, 07=HARD
+ *   Példa: F0 7D 01 03 F7 → PIANO
+ *
+ * 0x02 – Kalibráció START (unlock)
+ *   F0 7D 02 F7
+ *
+ * 0x03 – Kalibráció LOCK
+ *   F0 7D 03 F7
+ *
+ * 0x04 – Mentés EEPROM-ba
+ *   F0 7D 04 F7    (LED: hosszú villan ~400 ms)
+ *
+ * 0x05 – Factory reset (alapbeállítások)
+ *   F0 7D 05 F7
+ *
+ * 0x06 – Fix velocity (ORGAN_FIXED)
+ *   F0 7D 06 vv F7   (vv = 1..127)
+ *   Példa: F0 7D 06 64 F7 → fixedVel=100
+ *
+ * 0x07 – MIDI csatorna
+ *   F0 7D 07 cc F7   (cc=1..16 → CH1..16)
+ *   Példa: F0 7D 07 0A F7 → CH10
+ *   (Firmware 0-bázist is elfogad: 0..15 → CH1..16)
+ *
+ * 0x08 – Program Change küldése
+ *   F0 7D 08 pp F7   (pp=0..127)
+ *   Példa: F0 7D 08 14 F7 → PC#20
+ *
+ * 0x09 – Default Patch engedély + érték
+ *   F0 7D 09 ee pp F7   (ee=0/1, pp=0..127)
+ *   Ha ON, boot után kiküldi a PC-t ~300 ms-nál.
+ *
+ * 0x0A – STATUS (soros monitorra)
+ *   F0 7D 0A F7    (LED: dupla rövid)
+ *
+ * LED minták:
+ *   SAVE/EEPROM: hosszú (~400 ms)
+ *   STATUS: dupla rövid
+ *   CH váltás: tripla gyors
+ *
+ * ------------------------------------------------------
+ *
+ * *** FN + BILLENTYŰ CONFIG RÉTEG (host nélkül) ***
+ * FN = Arduino pin 15 (INPUT_PULLUP, aktív LOW)
+ * Belépés: FN ≥120 ms → LED folyamatos
+ * Kilépés: FN elengedés / 5 s tétlenség
+ *
+ * N0..N15   → MIDI CH1..CH16         (LED: tripla gyors)
+ * N16       → STATUS                 (LED: dupla rövid)
+ * N17       → FACTORY RESET          (LED: hosszú)
+ * N18       → CALIB START            (LED: rövid)
+ * N19       → CALIB LOCK             (LED: rövid)
+ * N20       → SAVE EEPROM            (LED: hosszú)
+ *
+ * N21       → FIXED-VEL mód          (LED: rövid)
+ * N22       → Görbe: LINEAR          (LED: rövid)
+ * N23       → Görbe: PIANO           (LED: rövid)
+ * N24       → Görbe: SOFT            (LED: rövid)
+ * N25       → Görbe: HARD            (LED: rövid)
+ *
+ * N26       → Default Patch OFF      (LED: hosszú)
+ * N27       → Default Patch ON       (LED: hosszú)
+ *
+ * N28..N36  → Gyors Program Change PC#0..8 (LED: rövid)
+ *
+ * Megjegyzések:
+ * - Csatornaváltáskor All Notes Off az előző csatornán.
+ * - Default Patch értékét SysEx 0x09 parancs állítja.
+ * - LED visszajelzés nem zavarja a szkennelést.
  *******************************************************/
+
+
 
 #include <Arduino.h>
 #include <MIDIUSB.h>
@@ -214,7 +271,7 @@ struct BlinkState { BlinkPattern pat; uint8_t step; uint32_t t0; bool active; };
 BlinkState g_led{BLINK_NONE,0,0,false};
 
 static inline void ledSet(bool on){ digitalWrite(LED, on?HIGH:LOW); }
-void ledBlink(BlinkPattern p){ g_led = {p, 0, millis(), true}; }
+void ledBlink(uint8_t p){ g_led = { (BlinkPattern)p, 0, millis(), true }; }
 
 void ledTask(){
   if(!g_led.active) return;
