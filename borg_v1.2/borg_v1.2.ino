@@ -516,5 +516,3 @@ void loop(){
 
   if(any){ MidiUSB.flush(); digitalWrite(LED,HIGH); delay(1); digitalWrite(LED,LOW); }
 }
-
-
