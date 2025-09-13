@@ -1,12 +1,12 @@
 /*******************************************************
  * bORG v1.2 alpha – Korg Modwave MKI -> Arduino Pro Micro USB-MIDI
- * 3.3 V rendszer, 2x PCF8574 (CJMCU-2317), joystick, oktáv offset + LED visszajelzés
+ * 3.3 V rendszer, 2x PCF8574 (CJMCU-2317), joystick (A4/A5), oktáv offset + LED visszajelzés
  *
  * ─────────────────────────────────────────────────────
  * HARDWARE OVERVIEW
  * - Arduino Pro Micro (3.3 V)
  * - PCF8574 #1 (I2C 0x20): INPUTS
- *     P0 = Sustain pedal (mono jack TIP)  → aktív LOW (SLEEVE → GND)
+ *     P0 = Sustain pedal (mono jack TIP)  → aktív LOW (SLEEVE → GND)  [CC64]
  *     P1 = Extra pedal (mono jack TIP)    → aktív LOW (SLEEVE → GND)  [CC67]
  *     P2 = Octave UP button               → aktív LOW
  *     P3 = Octave DOWN button             → aktív LOW
@@ -21,7 +21,7 @@
  *     P6..P7 = tartalék
  * - FN button: Arduino D15 (INPUT_PULLUP) – most még tartalék (hostless config későbbre)
  * - Joystick (10 kΩ, 2 tengely):
- *     VRx → A0 (Pitch Bend), VRy → A1 (Mod Wheel), VCC=3.3 V, GND=GND
+ *     VRx → A4 (Pitch Bend), VRy → A5 (Mod Wheel), VCC=3.3 V, GND=GND
  *
  * LED SZÍNKÓD (oktáv eltolás kijelzés, csak az egyik LED világít):
  *   0: mindkettő KI
@@ -69,7 +69,7 @@
 /*** PINS – SERVICE MANUAL SZERINTI NEVEK ***/
 // KS0 átrakva D3-ról D14-re (I2C felszabadítva: D2=SDA, D3=SCL)
 const uint8_t KS_PINS[4] = {14, 5, 7, 9};     // KS0..KS3  (INPUT, külső 10k -> 3.3V)
-const uint8_t KF_PINS[4] = {A0, A1, A2, A3};  // KF0..KF3  (INPUT, külső 10k -> 3.3V)  // MEGJ: v1.2-ben A0/A1 joystick! → Lásd NOTE alább
+const uint8_t KF_PINS[4] = {A0, A1, A2, A3};  // KF0..KF3  (INPUT, külső 10k -> 3.3V)
 
 // 74HC138 cím- és enable-vonalak (KLM-2663/2665 rajz szerint)
 const uint8_t KBD0 = 4;   // A (LSB)
@@ -79,14 +79,6 @@ const uint8_t KBD3 = 10;  // /G2A (panel-váltó) – 0:2665, 1:2663
 const uint8_t KBD4 = 16;  // /G2B (közös enable) – mindig LOW
 
 const uint8_t LED  = 17;  // TX LED
-
-/*** FONTOS v1.2 NOTE – ANALOG PINEK
- * Eredetileg KF_PINS[4] = A0..A3. v1.2-ben A0/A1-et joystick foglalja.
- * Ha a KF szenzor oldalon A0/A1 tényleg használatban volt, TÉNYLEGES HW-T ÉS KIOSZTÁST KELL IGAZÍTANI.
- * Az alábbi kódban a szkenner logikát érintetlenül hagyjuk (mint v1.0), feltételezve, hogy a KF oldali 4 bemenet
- * NEM ütközik a joystickkal (vagy át van kötve másik analógra).
- * Ha ütközés van: KF_PINS tömböt igazítsd olyan szabad analóg/lábakra, amelyek megfelelnek az eredeti elektronikának.
- */
 
 /*** SCAN / DEBOUNCE / FOCUS ***/
 const uint8_t  SAMPLES=1, MAJ=1;          // ha zajos: 3/2
@@ -181,7 +173,7 @@ struct Persist {
   // v1.1+
   uint8_t  midiCh;     // 1..16
   // v1.2+
-  int8_t   octShift;   // -3..+3
+  int8_t   octShift;   // -3..+3 (opcionális mentéshez)
   uint8_t  _pad[3];
 };
 const uint32_t MAGIC = 0x4B4D5744UL;
@@ -196,7 +188,7 @@ void saveEEP(){
   p.locked   = calib_locked ? 1 : 0;
   p.fixedVel = fixedVelocity;
   p.midiCh   = MIDI_CH;
-  p.octShift = 0; // futás közben is menthetjük, de default 0
+  p.octShift = 0; // most nem mentjük a shiftet, de megvan a helye
   EEPROM.put(EEPROM_ADDR, p);
 }
 bool loadEEP(){
@@ -335,6 +327,11 @@ const char* curveName(Curve c){
   }
 }
 
+/*** v1.2 – OCTAVE OFFSET + LED ***/
+int8_t g_octaveOffset = 0; // –3..+3
+
+enum LedColor { LED_OFF=0, LED_GREEN, LED_YELLOW, LED_RED };
+
 void printStatus(){
   Serial.println(F("=== bORG v1.2 STATUS ==="));
   Serial.print(F("EEPROM loaded: ")); Serial.println(g_eep_loaded ? F("YES") : F("NO (defaults)"));
@@ -348,11 +345,6 @@ void printStatus(){
   Serial.print(F("Octave offset: ")); Serial.println((int)g_octaveOffset);
   Serial.println(F("======================"));
 }
-
-/*** v1.2 – OCTAVE OFFSET + LED ***/
-int8_t g_octaveOffset = 0; // –3..+3
-
-enum LedColor { LED_OFF=0, LED_GREEN, LED_YELLOW, LED_RED };
 
 /*** PCF8574 – egyszerű driver ***/
 const uint8_t PCF_IN_ADDR  = 0x20; // #1 inputs
@@ -374,7 +366,6 @@ const uint8_t IN_SUSTAIN = 0;   // P0
 const uint8_t IN_EXTRA   = 1;   // P1
 const uint8_t IN_OCT_UP  = 2;   // P2
 const uint8_t IN_OCT_DN  = 3;   // P3
-// P4..P7 reserve
 
 // Output bitkiosztás (#2)
 const uint8_t OUT_DOWN_R = 0;   // P0
@@ -383,7 +374,6 @@ const uint8_t OUT_DOWN_B = 2;   // P2
 const uint8_t OUT_UP_R   = 3;   // P3
 const uint8_t OUT_UP_G   = 4;   // P4
 const uint8_t OUT_UP_B   = 5;   // P5
-// P6..P7 reserve
 
 // Helper: I2C write 1 byte
 bool pcfWrite8(uint8_t addr, uint8_t val){
@@ -454,9 +444,9 @@ void applyOctaveLeds(){
 }
 inline int8_t clampOct(int8_t v){ if(v<-3) return -3; if(v>3) return 3; return v; }
 
-/*** JOYSTICK – A0 (Pitch), A1 (Mod), 3.3 V; smoothing + dead-zone ***/
-const uint8_t ADC_PITCH = A0;
-const uint8_t ADC_MOD   = A1;
+/*** JOYSTICK – A4 (Pitch), A5 (Mod), 3.3 V; smoothing + dead-zone ***/
+const uint8_t ADC_PITCH = A4;  // !!! v1.2: A4
+const uint8_t ADC_MOD   = A5;  // !!! v1.2: A5
 
 int readAdcFiltered(uint8_t pin){
   // 4-mintás egyszerű átlag
@@ -465,7 +455,7 @@ int readAdcFiltered(uint8_t pin){
 }
 // Pitch: 14-bit, dead-zone a közép körül
 void processJoystick(){
-  // ADC 10-bit feltételezve 0..1023 (Pro Micro)
+  // ADC 10-bit feltételezve: 0..1023 (Pro Micro)
   int vPitch = readAdcFiltered(ADC_PITCH);
   int vMod   = readAdcFiltered(ADC_MOD);
 
@@ -476,7 +466,6 @@ void processJoystick(){
   if(abs(delta) < DZ) delta = 0;
 
   // Skálázás -8192..+8191
-  // 512-DZ → +8191; -512+DZ → -8192 (lineáris)
   float scale = (float)8191.0f / (512.0f - (float)DZ);
   int16_t bend = (int16_t)roundf(constrain(delta, -(512-DZ), (512-DZ)) * scale);
   if(bend != 0) midiPB(bend);
@@ -768,3 +757,4 @@ void loop(){
 
   if(any){ MidiUSB.flush(); digitalWrite(LED,HIGH); delay(1); digitalWrite(LED,LOW); }
 }
+
