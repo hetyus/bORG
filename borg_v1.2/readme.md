@@ -140,6 +140,8 @@ void loop(){
 Expected:
 0x20 → MCP23017 · 0x48 → ADS1115
 
+---
+
 ##Troubleshooting
 
 No I²C devices found: check SDA=D2, SCL=D3 wiring; common GND; 3.3 V power; pull-ups (103 on modules).
@@ -150,6 +152,8 @@ LED colors wrong: swap GPB wiring or anode order; verify common cathode type.
 
 Sustain/Extra inverted: inputs are active LOW with pull-up; invert in wiring (TIP to input, SLEEVE to GND).
 
+---
+
 ##Roadmap
 
 v1.2.x: FN key mapping, config dump/load, small UX fixes
@@ -158,9 +162,11 @@ v1.3: OLED status, preset slots, optional DIN-MIDI out
 
 Long-term: custom velocity curves via SysEx, ribbon/aftertouch (if hardware allows)
 
+---
+
 ##Credits & Legal
 
 © 2025 hetyus · GPL-3.0-or-later
 KORG and KORG Modwave are trademarks of KORG Inc. This project is not affiliated with KORG.
 
-> **No warranty**: the software and hardware notes are provided “as is”.
+**No warranty**: the software and hardware notes are provided “as is”.
