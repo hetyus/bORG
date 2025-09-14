@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /*******************************************************
- * bORG v1.2.1 – Korg Modwave MKI -> Arduino Pro Micro USB-MIDI
+ * bORG v1.2 – Korg Modwave MKI -> Arduino Pro Micro USB-MIDI
  *
  * Hardware (3.3 V only):
  *  - Keybed scan unchanged (KS/KF + 74HC138 on KBD0..4).
