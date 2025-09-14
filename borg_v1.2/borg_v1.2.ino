@@ -46,7 +46,7 @@
 #include <MIDIUSB.h>
 #include <EEPROM.h>
 #include <Wire.h>
-#include <Adafruit_MCP23X17.h>   // ÚJ könyvtár
+#include <Adafruit_MCP23X17.h>   // új könyvtár
 #include <Adafruit_ADS1X15.h>
 
 /*** PINS – SERVICE MANUAL SZERINTI NEVEK (változatlan 1.0-ból) ***/
@@ -64,7 +64,7 @@ const uint8_t KBD4 = 16;  // /G2B (közös enable) – mindig LOW
 const uint8_t LED  = 17;  // TX LED (csak villantásra)
 
 /*** I2C eszközök ***/
-Adafruit_MCP23X17 mcp;     // @0x20 (MCP23017 az új libbel)
+Adafruit_MCP23X17 mcp;     // @0x20 (MCP23017 az új libben)
 Adafruit_ADS1115  ads;     // @0x48
 bool g_ads_ok = false;
 
@@ -84,9 +84,10 @@ const uint8_t MCP_UP_G   = 8+4; // GPB4
 const uint8_t MCP_UP_B   = 8+5; // GPB5
 
 /*** SCAN / DEBOUNCE / FOCUS ***/
-const uint8_t  SAMPLES=1, MAJ=1;
+// erősebb bemeneti szűrés (akkord/rángás ellen)
+const uint8_t  SAMPLES=3, MAJ=2;     // ha zajos: 3/2
 const uint16_t SAMPLE_DELAY_US=0;
-const uint16_t COL_SETTLE_US=100;
+const uint16_t COL_SETTLE_US=120;
 const uint16_t FOCUS_TIMEOUT_TICKS = 60000; // 0.5us/tick → ~30 ms
 const uint8_t  FOCUS_POLL_US       = 3;
 
@@ -207,21 +208,12 @@ static inline void selCol(uint8_t y){
   delayMicroseconds(COL_SETTLE_US);
 }
 static inline bool rd(uint8_t pin){
-  uint8_t hit=0; for(uint8_t i=0;i<SAMPLES;i++){ if(digitalRead(pin)==LOW) hit++; if(SAMPLE_DELAY_US) delayMicroseconds(SAMPLE_DELAY_US); }
-  return hit>=MAJ;
-}
-
-// VÁRÁS A PÁR-ÉLRE UGYANABBAN A CELLÁBAN (KS↔KF), IDŐKÜLÖNBSÉG MÉRÉSHEZ
-static inline bool focusWaitCounterpartTicks(uint8_t panel, uint8_t col, uint8_t row, bool wantKS, uint16_t &tOutTicks){
-  setEnableForPanel(panel);
-  selCol(col);
-  uint16_t t0 = tnow();
-  while ((uint16_t)(tnow() - t0) < FOCUS_TIMEOUT_TICKS){
-    bool v = rd(wantKS ? KS_PINS[row] : KF_PINS[row]);
-    if(v){ tOutTicks = tnow(); return true; }
-    if(FOCUS_POLL_US) delayMicroseconds(FOCUS_POLL_US);
+  uint8_t hit=0;
+  for(uint8_t i=0;i<SAMPLES;i++){
+    if(digitalRead(pin)==LOW) hit++;
+    if(SAMPLE_DELAY_US) delayMicroseconds(SAMPLE_DELAY_US);
   }
-  return false;
+  return hit>=MAJ;
 }
 
 /*** MIDI segédek ***/
@@ -283,6 +275,29 @@ static inline uint8_t vel_from_dt_ticks(uint16_t dt_ticks){
   uint8_t v=(uint8_t)lroundf(y*(MAX_VEL-MIN_VEL)+MIN_VEL);
   if(v<MIN_VEL) v=MIN_VEL; if(v>MAX_VEL) v=MAX_VEL;
   return v;
+}
+
+/*** Velocity-robosztussági helper (NINCS blokkoló várakozás) ***/
+static inline bool tryComputeVelAndTrigger(uint8_t physIndex, uint16_t tA, uint16_t tB){
+  if(tA==0 || tB==0) return false;             // még nincs meg mindkettő
+  uint16_t dt = (uint16_t)(tA - tB);
+  if((int16_t)dt < 0) dt = (uint16_t)(tB - tA);
+
+  // Védő küszöb – túl kicsi dt = valószínű időzítési/bounce hiba
+  const uint16_t MIN_DT_TICKS = 400; // ~200 µs (Timer1 0.5 µs/tick)
+  if(dt < MIN_DT_TICKS) return false;
+
+  uint8_t vel = vel_from_dt_ticks(dt);
+
+  if(fnActive()){
+    handleFnShortcutByNote((uint8_t)(NOTE_BASE + physIndex + 12*octaveShift));
+  }else{
+    midiOn((uint8_t)(NOTE_BASE + physIndex + 12*octaveShift), vel);
+    noteOnSent[physIndex]=true;
+    noteOnMs[physIndex]=millis(); releaseArm[physIndex]=false; tFirstReleaseTicks[physIndex]=0;
+    updateCalib((uint32_t)dt >> 1);
+  }
+  return true;
 }
 
 /*** REV MAP ***/
@@ -557,8 +572,7 @@ void setup(){
 
   // MCP23X17 init @0x20
   if(!mcp.begin_I2C(0x20)){
-    // Ha nem látszik I²C-n, maradjunk safe állapotban
-    // (itt akár villanthatnánk LED-et, de nincs MCU-LED kivezetés)
+    // ha nem látszik I²C-n, safe state
   }
   // GPA0..4 mint INPUT_PULLUP (Sustain, Extra, OctUP, OctDN, FN)
   for(uint8_t i=0;i<=4;i++){ mcp.pinMode(i, INPUT_PULLUP); }
@@ -588,52 +602,30 @@ void loop(){
         const int8_t iKS = REV_KS[panel][y][r];
         const int8_t iKF = REV_KF[panel][y][r];
 
-        // ===== KS rising → NoteOn =====
+        // ===== KS rising → NoteOn (blokkoló várakozás nélkül) =====
         if(iKS>=0){
           if(vKS && !lastKS[panel][y][r]){
             uint16_t tNow = tnow();
             tKS_ticks[iKS] = tNow;
-            if(tKF_ticks[iKS]==0 && !noteOnSent[iKS]){
-              uint16_t t2; if(focusWaitCounterpartTicks(panel,y,r,false,t2)) tKF_ticks[iKS]=t2;
-            }
-            if(tKF_ticks[iKS]!=0 && !noteOnSent[iKS]){
-              uint16_t dt = (uint16_t)(tKS_ticks[iKS] - tKF_ticks[iKS]);
-              if((int16_t)dt < 0) dt = (uint16_t)(tKF_ticks[iKS] - tKS_ticks[iKS]);
-              uint8_t vel = vel_from_dt_ticks(dt);
 
-              if(fnActive()){
-                handleFnShortcutByNote((uint8_t)(NOTE_BASE + iKS + 12*octaveShift));
-              }else{
-                midiOn((uint8_t)(NOTE_BASE + iKS + 12*octaveShift), vel);
-                noteOnSent[iKS]=true; any=true;
-                noteOnMs[iKS]=millis(); releaseArm[iKS]=false; tFirstReleaseTicks[iKS]=0;
-                updateCalib((uint32_t)dt >> 1);
+            if(!noteOnSent[iKS]){
+              if(tryComputeVelAndTrigger(iKS, tKS_ticks[iKS], tKF_ticks[iKS])){
+                any=true;
               }
             }
           }
           lastKS[panel][y][r]=vKS;
         }
 
-        // ===== KF rising → NoteOn =====
+        // ===== KF rising → NoteOn (blokkoló várakozás nélkül) =====
         if(iKF>=0){
           if(vKF && !lastKF[panel][y][r]){
             uint16_t tNow = tnow();
             tKF_ticks[iKF] = tNow;
-            if(tKS_ticks[iKF]==0 && !noteOnSent[iKF]){
-              uint16_t t2; if(focusWaitCounterpartTicks(panel,y,r,true,t2)) tKS_ticks[iKF]=t2;
-            }
-            if(tKS_ticks[iKF]!=0 && !noteOnSent[iKF]){
-              uint16_t dt = (uint16_t)(tKS_ticks[iKF] - tKF_ticks[iKF]);
-              if((int16_t)dt < 0) dt = (uint16_t)(tKF_ticks[iKF] - tKS_ticks[iKF]);
-              uint8_t vel = vel_from_dt_ticks(dt);
 
-              if(fnActive()){
-                handleFnShortcutByNote((uint8_t)(NOTE_BASE + iKF + 12*octaveShift));
-              }else{
-                midiOn((uint8_t)(NOTE_BASE + iKF + 12*octaveShift), vel);
-                noteOnSent[iKF]=true; any=true;
-                noteOnMs[iKF]=millis(); releaseArm[iKF]=false; tFirstReleaseTicks[iKF]=0;
-                updateCalib((uint32_t)dt >> 1);
+            if(!noteOnSent[iKF]){
+              if(tryComputeVelAndTrigger(iKF, tKS_ticks[iKF], tKF_ticks[iKF])){
+                any=true;
               }
             }
           }
