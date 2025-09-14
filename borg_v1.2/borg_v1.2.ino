@@ -5,12 +5,12 @@
  * Hardware (3.3 V only):
  *  - Keybed scan unchanged (KS/KF + 74HC138 on KBD0..4).
  *  - I²C bus: D2=SDA, D3=SCL shared.
- *  - MCP23017 (CJMCU-2317) @0x20:
- *      GPA0  Sustain (CC64) input, pull-up, active LOW
- *      GPA1  Extra   (CC67) input, pull-up, active LOW
- *      GPA2  Octave UP     input, pull-up, active LOW
- *      GPA3  Octave DOWN   input, pull-up, active LOW
- *      GPA4  FN button     input, pull-up, active LOW
+ *  - MCP23017 (Adafruit MCP23X17 lib) @0x20:
+ *      GPA0  Sustain (CC64) input, INPUT_PULLUP, active LOW
+ *      GPA1  Extra   (CC67) input, INPUT_PULLUP, active LOW
+ *      GPA2  Octave UP     input, INPUT_PULLUP, active LOW
+ *      GPA3  Octave DOWN   input, INPUT_PULLUP, active LOW
+ *      GPA4  FN button     input, INPUT_PULLUP, active LOW
  *      GPB0..2  RGB LED – DOWN (R,G,B) anodes via 220–330 Ω
  *      GPB3..5  RGB LED – UP   (R,G,B) anodes via 220–330 Ω
  *      LED cathodes -> GND (common cathode)
@@ -31,12 +31,12 @@
  *    F0 7D 07 cc F7        Set MIDI channel (cc=1..16, hex byte)
  *    F0 7D 08 pp F7        Program Change (pp=0..127)
  *  v1.2.1:
- *    FN + keys: host nélküli gyorsparancsok:
- *      – MIDI channel: NOTE_BASE-től induló 16 billentyű → csatorna 1..16
- *      – Velocity curve: a következő 8 billentyű → 0..7
+ *    FN + keys (hostless shortcuts):
+ *      – MIDI channel: 16 keys from NOTE_BASE → ch 1..16
+ *      – Velocity curve: next 8 keys → 0..7
  *      – C4 → Calib START, D4 → Calib STOP, E4 → SAVE, F4 → RESET, G4 → STATUS
- *    Octave shift gombok (−3..+3), LED szín visszajelzés:
- *      ±1=ZÖLD, ±2=SÁRGA (R+G), ±3=PIROS; 0 → LED-ek ki
+ *    Octave shift buttons (−3..+3), LED color feedback:
+ *      ±1=GREEN, ±2=YELLOW (R+G), ±3=RED; 0 → LEDs off
  *
  * License: GPL-3.0-or-later. KORG és KORG Modwave védjegyek a KORG Inc. tulajdonai.
  * Ez egy független, közösségi projekt, garancia nélkül.
@@ -46,7 +46,7 @@
 #include <MIDIUSB.h>
 #include <EEPROM.h>
 #include <Wire.h>
-#include <Adafruit_MCP23017.h>
+#include <Adafruit_MCP23X17.h>   // ÚJ könyvtár
 #include <Adafruit_ADS1X15.h>
 
 /*** PINS – SERVICE MANUAL SZERINTI NEVEK (változatlan 1.0-ból) ***/
@@ -64,7 +64,7 @@ const uint8_t KBD4 = 16;  // /G2B (közös enable) – mindig LOW
 const uint8_t LED  = 17;  // TX LED (csak villantásra)
 
 /*** I2C eszközök ***/
-Adafruit_MCP23017 mcp;     // @0x20
+Adafruit_MCP23X17 mcp;     // @0x20 (MCP23017 az új libbel)
 Adafruit_ADS1115  ads;     // @0x48
 bool g_ads_ok = false;
 
@@ -83,11 +83,11 @@ const uint8_t MCP_UP_R   = 8+3; // GPB3
 const uint8_t MCP_UP_G   = 8+4; // GPB4
 const uint8_t MCP_UP_B   = 8+5; // GPB5
 
-/*** SCAN / DEBOUNCE / FOCUS (változatlan logika) ***/
-const uint8_t  SAMPLES=1, MAJ=1;          // ha zajos: 3/2
+/*** SCAN / DEBOUNCE / FOCUS ***/
+const uint8_t  SAMPLES=1, MAJ=1;
 const uint16_t SAMPLE_DELAY_US=0;
 const uint16_t COL_SETTLE_US=100;
-const uint16_t FOCUS_TIMEOUT_TICKS = 60000; // Timer1 tick=0.5us → ~30 ms
+const uint16_t FOCUS_TIMEOUT_TICKS = 60000; // 0.5us/tick → ~30 ms
 const uint8_t  FOCUS_POLL_US       = 3;
 
 /*** RELEASE / OFF kezelés ***/
@@ -98,28 +98,22 @@ const bool     USE_NOTE_OFF_VELOCITY = true;
 /*** MIDI ***/
 uint8_t  MIDI_CH=1;
 const uint8_t  MIN_VEL=1, MAX_VEL=127;
-uint8_t  NOTE_BASE=48;              // legalsó hang (C3), oktáv shift erre épül
+uint8_t  NOTE_BASE=48;              // C3
 int8_t   octaveShift = 0;           // −3..+3
 
 /*** Görbék / Presetek ***/
 enum Curve : uint8_t {
-  CURVE_LINEAR=0,
-  CURVE_FLAT=1,
-  CURVE_STEEP=2,
-  CURVE_PIANO=3,
-  CURVE_SYNTH=4,
-  CURVE_ORGAN_FIXED=5,
-  CURVE_SOFT=6,
-  CURVE_HARD=7
+  CURVE_LINEAR=0, CURVE_FLAT=1, CURVE_STEEP=2, CURVE_PIANO=3,
+  CURVE_SYNTH=4, CURVE_ORGAN_FIXED=5, CURVE_SOFT=6, CURVE_HARD=7
 };
-float   dt_fast_us = 600.0f;     // „gyors” dt (kiinduló)
-float   dt_slow_us = 20000.0f;   // „lassú” dt
+float   dt_fast_us = 600.0f;
+float   dt_slow_us = 20000.0f;
 Curve   currentCurve = CURVE_LINEAR;
-uint8_t fixedVelocity = 100;     // ORGAN_FIXED módban
-bool    calib_locked = true;     // játék közben nem tanul
+uint8_t fixedVelocity = 100;
+bool    calib_locked = true;
 uint16_t learn_count = 0;
 
-/*** NOTE MAP – (mint 1.0) ***/
+/*** NOTE MAP (mint 1.0) ***/
 struct Contact { uint8_t panel,col,row; };
 const Contact NOTE_KS[37] = {
   {1,1,3},{1,1,2},{1,1,1},{1,1,0},
@@ -154,7 +148,7 @@ int8_t REV_KF[2][8][4];
 bool     ksDown[37]={0};
 bool     lastKS[2][8][4] = {{{0}}};
 bool     lastKF[2][8][4] = {{{0}}};
-uint16_t tKS_ticks[37]={0}, tKF_ticks[37]={0}; // Timer1 tick (0.5us)
+uint16_t tKS_ticks[37]={0}, tKF_ticks[37]={0};
 bool     noteOnSent[37]={0};
 
 // NoteOff-hoz
@@ -226,8 +220,8 @@ static inline void sendPB(int16_t bend){ uint16_t u = (uint16_t)(bend + 8192); u
 
 /*** Görbék ***/
 static inline float curve_piano(float x){
-  const float k = 6.0f;                   // S-görbe meredekség
-  return 1.0f / (1.0f + expf(-k*(0.5f - x))); // 0..1
+  const float k = 6.0f;
+  return 1.0f / (1.0f + expf(-k*(0.5f - x)));
 }
 static inline float applyCurve01(float x, Curve c){
   if(x<0) x=0; if(x>1) x=1;
@@ -244,7 +238,7 @@ static inline float applyCurve01(float x, Curve c){
   }
 }
 
-/*** Kalibráció – csak külön módban aktív ***/
+/*** Kalibráció ***/
 static inline void updateCalib(uint32_t dt_us){
   if (calib_locked) return;
   const float ALPHA_FAST = 0.25f;
@@ -363,7 +357,7 @@ uint8_t mapCC(int16_t v, int16_t minv, int16_t maxv){
 }
 void processJoystick(){
   static uint32_t last=0;
-  if(millis()-last < 5) return; // limitáljuk a zajt/terhelést
+  if(millis()-last < 5) return;
   last = millis();
 
   if(!g_ads_ok){ sendPB(0); sendCC(1,0); return; }
@@ -381,7 +375,7 @@ void processJoystick(){
 }
 
 /*** MCP input olvasás ***/
-bool mcpRead(uint8_t pin){ return mcp.digitalRead(pin) == LOW; } // active LOW
+inline bool mcpRead(uint8_t pin){ return mcp.digitalRead(pin) == LOW; } // active LOW
 
 void handleButtons(){
   static uint32_t last=0;
@@ -412,8 +406,6 @@ void handleFnShortcutByNote(uint8_t midiNote){
   // 1) MIDI csatorna: NOTE_BASE .. NOTE_BASE+15 → 1..16
   if(midiNote >= NOTE_BASE && midiNote <= NOTE_BASE+15){
     MIDI_CH = 1 + (midiNote - NOTE_BASE); // 1..16
-    // visszajelzés: mindkét LED rövid „triple”
-    // (egyszerűsítve: csak frissítjük az octave LED-et, mert nem villogtatunk blockinggal)
     showOctaveLED();
     return;
   }
@@ -549,10 +541,16 @@ void setup(){
 
   // I2C + eszközök
   Wire.begin(); // D2/D3
-  // MCP init
-  mcp.begin(0x20);
-  for(uint8_t i=0;i<=4;i++){ mcp.pinMode(i, INPUT); mcp.pullUp(i, HIGH); } // GPA0..4
-  for(uint8_t i=8;i<=13;i++){ mcp.pinMode(i, OUTPUT); mcp.digitalWrite(i, LOW); } // GPB0..5
+
+  // MCP23X17 init @0x20
+  if(!mcp.begin_I2C(0x20)){
+    // Ha nem látszik I²C-n, maradjunk safe állapotban
+    // (itt akár villanthatnánk LED-et, de nincs MCU-LED kivezetés)
+  }
+  // GPA0..4 mint INPUT_PULLUP (Sustain, Extra, OctUP, OctDN, FN)
+  for(uint8_t i=0;i<=4;i++){ mcp.pinMode(i, INPUT_PULLUP); }
+  // GPB0..5 mint OUTPUT, alapból LOW (LED anódok)
+  for(uint8_t i=8;i<=13;i++){ mcp.pinMode(i, OUTPUT); mcp.digitalWrite(i, LOW); }
   showOctaveLED();
 
   // ADS1115 init
@@ -561,9 +559,9 @@ void setup(){
 
 /*** LOOP ***/
 void loop(){
-  pollMIDIin();        // SysEx kezelése
-  handleButtons();     // MCP gombok/pedálok
-  processJoystick();   // ADS1115 → PB & CC1
+  pollMIDIin();
+  handleButtons();
+  processJoystick();
 
   bool any=false;
 
@@ -590,7 +588,6 @@ void loop(){
               if((int16_t)dt < 0) dt = (uint16_t)(tKF_ticks[iKS] - tKS_ticks[iKS]);
               uint8_t vel = vel_from_dt_ticks(dt);
 
-              // --- FN mód: konfiguráció hang helyett ---
               if(fnActive()){
                 handleFnShortcutByNote((uint8_t)(NOTE_BASE + iKS + 12*octaveShift));
               }else{
@@ -617,7 +614,6 @@ void loop(){
               if((int16_t)dt < 0) dt = (uint16_t)(tKF_ticks[iKF] - tKS_ticks[iKF]);
               uint8_t vel = vel_from_dt_ticks(dt);
 
-              // --- FN mód: konfiguráció hang helyett ---
               if(fnActive()){
                 handleFnShortcutByNote((uint8_t)(NOTE_BASE + iKF + 12*octaveShift));
               }else{
@@ -635,30 +631,24 @@ void loop(){
         auto processOffFor = [&](int8_t idx, bool vks_now, bool vkf_now){
           if(idx < 0) return;
 
-          // Ha nincs élő NoteOn, tisztítás és kilépés
           if(!noteOnSent[idx]){ releaseArm[idx]=false; tFirstReleaseTicks[idx]=0; return; }
 
-          // Minimum hanghossz
           uint32_t nowMs = millis();
           if(nowMs - noteOnMs[idx] < MIN_NOTE_LEN_MS) return;
 
-          // Mindkettő nyitva?
           const bool bothOpenNow = (!vks_now && !vkf_now);
 
-          // Első elengedés észlelése
           if(!releaseArm[idx] && (!vks_now || !vkf_now)){
             releaseArm[idx] = true;
             tFirstReleaseTicks[idx] = tnow();
           }
 
-          // Debounce
           static uint32_t bothOpenSinceMs[37]={0};
 
           if(bothOpenNow){
             if(bothOpenSinceMs[idx]==0) bothOpenSinceMs[idx]=nowMs;
 
             if(nowMs - bothOpenSinceMs[idx] >= RELEASE_DEBOUNCE_MS){
-              // Stabil OFF → NoteOff (opcionális velocity)
               uint8_t offVel = 0;
               if(USE_NOTE_OFF_VELOCITY && releaseArm[idx]){
                 uint16_t t2 = tnow();
@@ -674,12 +664,10 @@ void loop(){
               any=true;
             }
           }else{
-            // ha valamelyik visszazárt, elengedjük a debounce-ot
             bothOpenSinceMs[idx]=0;
           }
         };
 
-        // Meghívjuk mindkét indexre az aktuális cella állapotával
         processOffFor(iKS, vKS, vKF);
         processOffFor(iKF, vKS, vKF);
       }
