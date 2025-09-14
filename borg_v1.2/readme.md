@@ -23,23 +23,6 @@
 
 ---
 
-## Repo layout
-bORG/
-├─ borg_v1.2/
-│ ├─ bORG_v1.2.ino
-│ ├─ readme.md ← (this file)
-│ └─ docs/
-│ ├─ bORG_v1.2_schematic_with_ADS1115.png
-│ ├─ bORG_v1.2_wiring_overview.png
-│ ├─ bORG_v1.2_pinmap.png
-│ └─ bORG_v1.2_QuickReference_MCP23017.pdf
-├─ borg_v1.1/ … (previous release)
-├─ borg_v1.0/ … (baseline)
-└─ LICENSE
-
-
----
-
 ## Hardware (3.3 V only)
 
 - **MCU:** Arduino Pro Micro **3.3 V / 8 MHz** (ATmega32U4)
