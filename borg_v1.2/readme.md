@@ -1,4 +1,4 @@
-# 🎹 bORG v1.2.1 (alpha)
+# 🎹 bORG v1.2 (alpha)
 
 **Project:** Korg Modwave MKI keyboard → Arduino Pro Micro (3.3 V) USB-MIDI controller  
 **Status:** Hardware add-ons + firmware (MCP23017 + ADS1115 + FN shortcuts)  
@@ -73,7 +73,7 @@ Format: `F0 7D <cmd> [data...] F7`
 
 ---
 
-## FN + Key Shortcuts (v1.2.1)
+## FN + Key Shortcuts (v1.2)
 
 Hold **FN** (GPA4, active LOW). While held, **keys trigger config** instead of notes.
 
