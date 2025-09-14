@@ -211,6 +211,19 @@ static inline bool rd(uint8_t pin){
   return hit>=MAJ;
 }
 
+// VÁRÁS A PÁR-ÉLRE UGYANABBAN A CELLÁBAN (KS↔KF), IDŐKÜLÖNBSÉG MÉRÉSHEZ
+static inline bool focusWaitCounterpartTicks(uint8_t panel, uint8_t col, uint8_t row, bool wantKS, uint16_t &tOutTicks){
+  setEnableForPanel(panel);
+  selCol(col);
+  uint16_t t0 = tnow();
+  while ((uint16_t)(tnow() - t0) < FOCUS_TIMEOUT_TICKS){
+    bool v = rd(wantKS ? KS_PINS[row] : KF_PINS[row]);
+    if(v){ tOutTicks = tnow(); return true; }
+    if(FOCUS_POLL_US) delayMicroseconds(FOCUS_POLL_US);
+  }
+  return false;
+}
+
 /*** MIDI segédek ***/
 static inline void midiOn(uint8_t note,uint8_t vel){ midiEventPacket_t p={0x09,(uint8_t)(0x90|(MIDI_CH-1)),note,vel}; MidiUSB.sendMIDI(p); }
 static inline void midiOff(uint8_t note){ midiEventPacket_t p={0x08,(uint8_t)(0x80|(MIDI_CH-1)),note,0}; MidiUSB.sendMIDI(p); }
