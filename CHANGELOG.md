@@ -53,10 +53,11 @@
 - Consolidated timing macros at top of sketch
 - Preserved non‑blocking scan and velocity pipeline
 
-## v1.2alpha
+## v1.2
 - add FN knob -> FN + keys (hostless shortcuts):
 - add MCP23017 for buttons/LEDs/pedals
 - add ADS1115 for joystick (Pitch Bend / Mod Wheel CC1)
+- alpha stage
 - pinout plan was bad -> rebuild in 1.2.1
 
 ## v1.1
