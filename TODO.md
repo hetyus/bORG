@@ -17,9 +17,10 @@
 - [ ] Add debug logging refinement (KS/KF pairing visualization)
 
 ## Long term
-- [ ] Clean stable release tag for v1.2.1 (preset build)  
+- [ ] Clean stable release tag for v1.2.1
 - [ ] Merge documentation: firmware variants under `/docs`  
 - [ ] Prepare Quick Reference update (FN + SysEx table refresh)  
 - [ ] Evaluate hardware consistency (switch tolerance, keybed differences)
+
 
 ---
