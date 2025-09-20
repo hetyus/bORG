@@ -50,6 +50,7 @@ Well, it only makes sense if you’ve converted the Korg Modwave into a module a
 /firmware/ – all Arduino sketches (.ino), versioned by filename
 /docs/ – Quick Reference (FN + SysEx), version-specific READMEs, measurement plans
 README.md – main entrypoint, points to current stable build and known issues
+CHANGELOG.md - changelog
 TODO.md – development next steps (short-term tasks)
 STATUS_TEMPLATE_bORG_v1.2.1.txt – template for handover to a new chat or developer
 LICENSE – GPL-3.0-or-later
