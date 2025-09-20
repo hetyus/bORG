@@ -47,13 +47,12 @@ Well, it only makes sense if you’ve converted the Korg Modwave into a module a
 
 ## Repository layout
 ```
-/firmware/           ← all .ino sketches (v1.1 and v1.2.1 variants)
-/docs/               ← detailed documentation (version specific readme, schematic, etc)
-CHANGELOG.md
-STATUS_TEMPLATE_bORG_v1.2.1.txt
-TODO.md
-LICENSE
-MEASUREMENT_PLAN_bORG_v1.2.1_chord_spike
+/firmware/ – all Arduino sketches (.ino), versioned by filename
+/docs/ – Quick Reference (FN + SysEx), version-specific READMEs, measurement plans
+README.md – main entrypoint, points to current stable build and known issues
+TODO.md – development next steps (short-term tasks)
+STATUS_TEMPLATE_bORG_v1.2.1.txt – template for handover to a new chat or developer
+LICENSE – GPL-3.0-or-later
 ```
 
 ---
