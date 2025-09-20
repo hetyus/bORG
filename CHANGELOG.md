@@ -1,6 +1,13 @@
 # Changelog
 
-## v1_2_1_ADSswitch_fix16e_dtguard_clean_USE_ADS_minpatch (current development, dt-guard + ADS switch)
+## v1_2_1_ADSswitch_fix16f_dtguard_clean_USE_ADS_minpatch
+- dt-guard hardened: order-safe, wrap-safe delta; rejects out-of-range values.
+- Chord anti-spike limiter (per-scan median clamp).
+- Black-key compensation (~0.77x) optional.
+- USE_ADS compile-time switch retained; ADS1115 only active if USE_I2C=1 && USE_ADS=1.
+- FN shortcuts + SysEx kept compatible with docs/QuickReference_FN_SysEx_human.md.
+
+## v1_2_1_ADSswitch_fix16e_dtguard_clean_USE_ADS_minpatch
 - dt‑guard (wrap/order safe).
 - `USE_ADS` switch restored; all ADS1115 code under `(USE_I2C && USE_ADS)`.
 - STRICT_PAIRING remains optional.
