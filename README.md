@@ -1,12 +1,19 @@
 # 🎹 bORG
 
-Korg Modwave MKI keybed → Arduino Pro Micro (ATmega32U4, 3.3 V) USB-MIDI firmware
-
-This firmware turns the Modwave MKI keybed into a class-compliant USB-MIDI controller.  
+bORG turns the KORG Modwave MKI keybed into a class-compliant USB-MIDI controller using an Arduino Pro Micro 3.3 V
 It supports velocity curves, SysEx configuration, EEPROM save/load, and optional I2C peripherals (MCP23017, ADS1115).
 
 Who the hell would need this anyway?
 Well, it only makes sense if you’ve converted the Korg Modwave into a module and you’re left with a bare keybed that you couldn’t use without a "brain".
+
+---
+
+## Hardware
+- **MCU**: Pro Micro 3.3 V (ATmega32U4)
+- **I²C**: SDA=D2, SCL=D3 @ 100 kHz
+- **MCP23017 @ 0x20**: GPA0..4 inputs (sustain, extra, octave up/down, FN); GPB8..13 RGB LED outputs
+- **ADS1115 @ 0x48**: A0=Joy X (Pitch Bend), A1=Joy Y (CC1)
+- **FN button**: D15 when `USE_I2C=0`; on MCP when `USE_I2C=1
 
 ---
 
