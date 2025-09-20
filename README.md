@@ -17,12 +17,20 @@ Well, it only makes sense if you’ve converted the Korg Modwave into a module a
 
 ---
 
-## Quick links
-- **Current development branch:**  (add ADS switch + velocity fine tune)
-  `/firmware/bORG_v1_2_1_ADSswitch_fix16e_dtguard_clean_USE_ADS_minpatch.ino`
+## Current stable build
+- Firmware: `firmware/bORG_v1_2_1_ADSswitch_fix16e_dtguard_clean_USE_ADS_minpatch.ino`
+- Defaults: USE_I2C=0, USE_ADS=0, MIN_DT_TICKS=300, COL_SETTLE_US=340, S/M=5/3, STRICT_PAIRING=0
+- Status: Note On/Off OK; velocity stable on single notes; chord spikes under investigation.
+- See also: `/MEASUREMENT_PLAN_bORG_v1.2.1_chord_spike.md`
+
+## Quick Reference
+- See `docs/QuickReference_FN_SysEx_human.md` (matches current sketch mappings).
+
+## Known issues
+- Chord velocity spikes (occasionally 120–127 on multi-key).
+- Black keys read ~30% higher velocity vs. white keys.
+- Rare high-velocity outliers on soft single presses.
 - **Documentation:** see `/docs` (fix16f README, Quick Reference, status template)
-- **Releases:** see GitHub *Releases* section (e.g. v1.1.1)
-- **License:** GPL-3.0-or-later (LICENSE in repo root)
 
 ---
 
