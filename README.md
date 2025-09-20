@@ -18,7 +18,7 @@ Well, it only makes sense if you’ve converted the Korg Modwave into a module a
 ---
 
 ## Current stable build
-- Firmware: `firmware/bORG_v1_2_1_ADSswitch_fix16e_dtguard_clean_USE_ADS_minpatch.ino`
+- Firmware: `firmware/bORG_v1_2_1_ADSswitch_fix16f_dtguard_clean_USE_ADS_minpatch`
 - Defaults: USE_I2C=0, USE_ADS=0, MIN_DT_TICKS=300, COL_SETTLE_US=340, S/M=5/3, STRICT_PAIRING=0
 - Status: Note On/Off OK; velocity stable on single notes; chord spikes under investigation.
 - See also: `/MEASUREMENT_PLAN_bORG_v1.2.1_chord_spike.md`
