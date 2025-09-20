@@ -6,7 +6,7 @@
 - STRICT_PAIRING remains optional.
 
 ## v1.2.1-fix16e (dt-guard clean)
-- dt‑guard (wrap/order safe).
+- +dt‑guard (wrap/order safe).
 
 ## v1.2.1-fix13b (pairing only)
 - STRICT_PAIRING introduced without dt-guard.
