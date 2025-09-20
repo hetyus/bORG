@@ -48,11 +48,12 @@ Well, it only makes sense if you’ve converted the Korg Modwave into a module a
 ## Repository layout
 ```
 /firmware/           ← all .ino sketches (v1.1 and v1.2.1 variants)
-/docs/               ← detailed documentation
+/docs/               ← detailed documentation (version specific readme, schematic, etc)
 CHANGELOG.md
 STATUS_TEMPLATE_bORG_v1.2.1.txt
 TODO.md
 LICENSE
+MEASUREMENT_PLAN_bORG_v1.2.1_chord_spike
 ```
 
 ---
