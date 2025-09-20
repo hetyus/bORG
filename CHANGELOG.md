@@ -28,6 +28,31 @@
 - Stable with I2C=0
 - satarting velocity optimalization because of inconsistencies and spikes (MIN_DT_TICKS, COL_SETTLE_US, SAMPLES/MAJ)
 
+## v1.2.1
+- add FN knob -> FN + keys (hostless shortcuts):
+ 	– MIDI channel
+        – Velocity curve:
+        – Calib START, Calib STOP, SAVE, STATUS
+- add MCP23017 for buttons/LEDs/pedals
+   - Octave shift buttons (−3..+3), LED color feedback: ±1=GREEN, ±2=YELLOW (R+G), ±3=RED; 0 → LEDs off
+   - Sustain pedal + SW pedal
+- add ADS1115 for joystick (Pitch Bend / Mod Wheel CC1).
+  * I²C: D2=SDA, D3=SCL
+  * MCP23017 (Adafruit MCP23X17 lib) @0x20
+  *   GPA0  Sustain (CC64)  INPUT_PULLUP, active LOW
+  *   GPA1  Extra   (CC67)  INPUT_PULLUP, active LOW
+  *   GPA2  Octave UP       INPUT_PULLUP, active LOW
+  *   GPA3  Octave DOWN     INPUT_PULLUP, active LOW
+  *   GPA4  FN button       INPUT_PULLUP, active LOW
+  *   GPB0..2  RGB DOWN LED (R,G,B) anodes via 220–330Ω, cathode->GND
+  *   GPB3..5  RGB UP   LED (R,G,B) anodes via 220–330Ω, cathode->GND
+  *
+  * ADS1115 @0x48:
+  *   A0 <- Joystick X → Pitch Bend
+  *   A1 <- Joystick Y → Mod Wheel (CC1)
+- Consolidated timing macros at top of sketch
+- Preserved non‑blocking scan and velocity pipeline
+
 ## v1.2alpha
 - add FN knob -> FN + keys (hostless shortcuts):
  	– MIDI channel
