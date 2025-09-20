@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.2.1_ADSswitch_fix16f_dtguard_adswitch (current development, dt-guard + ADS switch)
+## v1_2_1_ADSswitch_fix16e_dtguard_clean_USE_ADS_minpatch (current development, dt-guard + ADS switch)
 - dt‑guard (wrap/order safe).
 - `USE_ADS` switch restored; all ADS1115 code under `(USE_I2C && USE_ADS)`.
 - STRICT_PAIRING remains optional.
