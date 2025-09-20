@@ -1,98 +1,102 @@
 # 🎹 bORG
 
-**Project:** Korg Modwave MKI keyboard → Arduino Pro Micro USB-MIDI controller
+Korg Modwave MKI keybed → Arduino Pro Micro (ATmega32U4, 3.3 V) USB-MIDI firmware
 
-This firmware turns the Korg Modwave MKI keybed into a class-compliant USB-MIDI controller
-with velocity curves, calibration, SysEx configuration, and EEPROM storage.
+This firmware turns the Modwave MKI keybed into a class-compliant USB-MIDI controller.  
+It supports velocity curves, SysEx configuration, EEPROM save/load, and optional I2C peripherals (MCP23017, ADS1115).
 
 Who the hell would need this anyway?
 Well, it only makes sense if you’ve converted the Korg Modwave into a module and you’re left with a bare keybed that you couldn’t use without a "brain".
 
 ---
 
+## Quick links
+- **Stable firmware (recommended):**  
+  `/firmware/bORG_v1.2.1_ADSswitch_fix16f_preset_stable.ino`
+- **Current development branch:**  
+  `/firmware/bORG_v1.2.1_ADSswitch_fix16f_dtguard_adswitch.ino`
+- **Documentation:** see `/docs` (fix16f README, Quick Reference, status template)
+- **Releases:** see GitHub *Releases* section (e.g. v1.1.1)
+- **License:** GPL-3.0-or-later (LICENSE in repo root)
+
+---
+
 ## Features
-- Velocity-sensitive scanning with selectable curves  
-- SysEx configuration (curve, calibration, fixed velocity, factory reset, status)  
-- NoteOff velocity support  
-- EEPROM save/load of settings  
+- Velocity-sensitive key matrix scanning with selectable curves
+- SysEx-based configuration (channel, curve, fixed velocity, factory reset, status)
+- EEPROM save/load
+- **v1.2.1**:  
+  - *dt-guard*: order-safe, wrap-safe KS/KF delta, rejecting out-of-range values  
+  - *STRICT_PAIRING*: optional cross-pair prevention  
+  - *USE_ADS*: compile-time switch restored; ADS1115 only active if `USE_I2C=1 && USE_ADS=1`
 
 ---
 
-## SysEx Commands
-
-General format: `F0 7D <cmd> [data…] F7`  
-– `7D` = non-commercial manufacturer ID  
-– All values are **raw MIDI bytes (0–127)**, not ASCII characters!
-
-| Cmd | Data | Function | Example |
-|-----|------|----------|---------|
-| `01 cc` | 00=LINEAR, 01=FLAT, 02=STEEP, 03=PIANO, 04=SYNTH, 05=ORGAN_FIXED, 06=SOFT, 07=HARD | Select velocity curve | `F0 7D 01 03 F7` → PIANO |
-| `02` | – | Calibration START (unlock) | `F0 7D 02 F7` |
-| `03` | – | Calibration LOCK | `F0 7D 03 F7` |
-| `04` | – | Save settings to EEPROM | `F0 7D 04 F7` |
-| `05` | – | Factory reset (defaults) | `F0 7D 05 F7` |
-| `06 vv` | vv=1..127 | Set fixed velocity | `F0 7D 06 64 F7` → vel=100 |
-| `07 cc` | cc=1..16 | Set global MIDI channel | `F0 7D 07 0A F7` → CH10 |
-| `08 pp` | pp=0..127 | Send Program Change | `F0 7D 08 14 F7` → PC#20 |
-| `09 ee pp` | ee=0/1, pp=0..127 | Enable/disable default patch at boot | `F0 7D 09 01 28 F7` → PC#40 on boot |
-| `0A` | – | STATUS to Serial Monitor | `F0 7D 0A F7` |
-
-**LED feedback patterns:**  
-- EEPROM save → long blink (~400 ms)  
-- STATUS → double short blink  
-- MIDI channel change → triple quick blink  
+## Repository layout
+```
+/firmware/           ← all .ino sketches (v1.1 and v1.2.1 variants)
+/docs/               ← detailed documentation
+CHANGELOG.md
+STATUS_TEMPLATE_bORG_v1.2.1.txt
+TODO.md
+LICENSE
+```
 
 ---
 
-## FN Button + Key Configuration (host-less control)
+## Build instructions (v1.2.1 – fix16f)
+**Target:** Arduino Pro Micro 3.3 V (ATmega32U4)  
+**Peripherals (optional):** MCP23017 @0x20, ADS1115 @0x48
 
-- FN button = Arduino pin 15 (INPUT_PULLUP, active LOW)  
-- Enter config mode: hold FN ≥120 ms → LED solid ON  
-- Exit: release FN or 5 s inactivity  
+1. Open the `.ino` in Arduino IDE (board: *Arduino Leonardo/Micro* family).  
+2. Adjust build switches at the top of the source:
+   - `#define USE_I2C 0/1`
+   - `#define USE_ADS 0/1` *(only meaningful if USE_I2C=1)*
+   - `#define STRICT_PAIRING 0/1`
+   - `#define DEBUG_PAIR 0/1`
+   - `#define DIAG_CONTACT 0/1`
+3. Recommended stable parameters (already set in preset build):
+   - `MIN_DT_TICKS=380`, `MAX_DT_TICKS=40000`, `ARM_TIMEOUT_TICKS=60000`
+   - `COL_SETTLE_US=340`, `INTER_SAMPLE_DELAY_US=50`
+   - `SAMPLES=5`, `MAJ=3`
+4. Upload → test single notes, dyads, triads, fast repetitions, pianissimo presses.
 
-| Key (N index) | Function | LED |
-|---------------|----------|-----|
-| N0..N15  | MIDI channel 1..16 | Triple quick blink |
-| N16      | STATUS | Double short blink |
-| N17      | Factory reset | Long blink |
-| N18      | Calibration START | Short blink |
-| N19      | Calibration LOCK | Short blink |
-| N20      | Save EEPROM | Long blink |
-| N21      | Fixed-velocity mode | Short blink |
-| N22      | Curve: LINEAR | Short blink |
-| N23      | Curve: PIANO | Short blink |
-| N24      | Curve: SOFT | Short blink |
-| N25      | Curve: HARD | Short blink |
-| N26      | Default Patch OFF | Long blink |
-| N27      | Default Patch ON | Long blink |
-| N28..N36 | Quick Program Change slots (PC#0..8) | Short blink |
+**Note:** Leave `USE_ADS=0` unless ADS1115 is actually wired.  
 
 ---
 
-## Notes
+## SysEx implementation
 
-- When changing MIDI channel, the firmware sends an “All Notes Off” on the previous channel.  
-- Default Patch value is configured with SysEx `0x09`.  
-- LED feedback is non-blocking and does not interfere with key scanning.
+| Function | Example | Description |
+|----------|---------|-------------|
+| Set channel | `F0 7D 01 01 cc F7` | `cc` = MIDI channel (1–16) |
+| Set curve | `F0 7D 01 02 cc F7` | `cc` = curve (0–6) |
+| Set fixed velocity | `F0 7D 01 03 vv F7` | `vv` = 1–127 |
+| Factory reset | `F0 7D 01 7E F7` | Reset to defaults |
+| Request status | `F0 7D 01 7F F7` | Send current config as SysEx |
 
----
-
-## Installation
-1. Open the `.ino` file in Arduino IDE.  
-2. Select **Arduino Pro Micro (ATmega32U4)** as board.  
-3. Upload to your device.  
-
----
-
-## Usage
-Connect via USB. The device will show up as a MIDI controller.  
-Configuration can be changed via SysEx messages (see documentation).
+*All SysEx IDs use manufacturer ID `7D` (non-commercial).*
 
 ---
 
-## Dependencies
-- **Arduino Core** (LGPL)  
-- **MIDIUSB library** (MIT)  
+## FN shortcuts (with MCP23017 enabled)
+
+- **FN + C**: Octave down  
+- **FN + D**: Octave up  
+- **FN + E**: Toggle fixed velocity  
+- **FN + F**: Curve select  
+- **FN + G**: Status dump (SysEx)  
+- **FN + A**: Factory reset  
+
+*(On baseline builds without I2C, FN is handled via the local pin only.)*
+
+---
+
+## Version branches
+- **v1.1**: legacy stable branch (see `/firmware`)  
+- **v1.2.1**: current development branch (dt-guard, pairing, ADS switch)  
+
+The SysEx and FN features remain consistent across branches.  
 
 ---
 
@@ -100,7 +104,11 @@ Configuration can be changed via SysEx messages (see documentation).
 This project is licensed under **GPL-3.0-or-later**.  
 See the [LICENSE](LICENSE) file for details.
 
+---
+
 **No warranty.** This software is provided *AS IS*, without any warranty of any kind.
+
+---
 
 © 2025 hetyus
 
