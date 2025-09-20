@@ -1,12 +1,15 @@
 # Changelog
 
-## bORG_v1.2.1_ADSswitch_fix16f_preset_stable
-- Test purpose: predifined parameters for velocity otimalization
-
-## v1.2.1_ADSswitch_fix16f_dtguard_adswitch (current, dt-guard + ADS switch)
+## v1.2.1_ADSswitch_fix16f_dtguard_adswitch (current development, dt-guard + ADS switch)
 - dt‑guard (wrap/order safe).
 - `USE_ADS` switch restored; all ADS1115 code under `(USE_I2C && USE_ADS)`.
 - STRICT_PAIRING remains optional.
+
+## bORG_v1.2.1_ADSswitch_fix16f_preset_stable (current stable)
+- dt‑guard (wrap/order safe).
+- `USE_ADS` switch restored; all ADS1115 code under `(USE_I2C && USE_ADS)`.
+- STRICT_PAIRING remains optional.
+- predifined parameters for velocity otimalization
 
 ## v1.2.1-fix16e (dt-guard clean)
 - dt‑guard (wrap/order safe).
