@@ -18,10 +18,8 @@ Well, it only makes sense if you’ve converted the Korg Modwave into a module a
 ---
 
 ## Quick links
-- **Stable firmware :** (working, but without ADS switch, and with velocity problems)  
-  `/firmware/bORG_v1_2_1_ADSswitch_fix16e_dtguard_clean.ino`
 - **Current development branch:**  (add ADS switch + velocity fine tune)
-  `/firmware/bORG_v1.2.1_ADSswitch_fix16f_dtguard_adswitch.ino`
+  `/firmware/bORG_v1_2_1_ADSswitch_fix16e_dtguard_clean_USE_ADS_minpatch.ino`
 - **Documentation:** see `/docs` (fix16f README, Quick Reference, status template)
 - **Releases:** see GitHub *Releases* section (e.g. v1.1.1)
 - **License:** GPL-3.0-or-later (LICENSE in repo root)
