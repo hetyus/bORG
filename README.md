@@ -58,7 +58,7 @@ LICENSE – GPL-3.0-or-later
 
 ---
 
-## Build instructions (v1.2.1 – fix16f)
+## Build instructions (v1.2.1 – fix16e)
 **Target:** Arduino Pro Micro 3.3 V (ATmega32U4)  
 **Peripherals (optional):** MCP23017 @0x20, ADS1115 @0x48
 
